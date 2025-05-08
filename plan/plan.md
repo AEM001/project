@@ -11,7 +11,6 @@
   - `string name` - 用户姓名
   - `string password` - 加密后的密码
   - `double balance` - 账户余额
-  - `time_t registerTime` - 注册时间
   - `UserStatus status` - 用户状态（枚举类型）
 - **方法**：
   - `bool verifyLogin(string password)` - 验证登录密码
@@ -25,19 +24,15 @@
 - **属性**：
   - `string studentId` - 学号
   - `string className` - 班级
-  - `int maxQuota` - 最大资源配额
-- **方法**：
-  - `int calculateQuota() override` - 实现学生配额计算
+
 
 #### 1.3 派生类：`Teacher`
 - **属性**：
   - `string employeeId` - 工号
   - `string department` - 部门
-  - `int maxQuota` - 最大资源配额
-- **方法**：
-  - `int calculateQuota() override` - 实现教师配额计算（高于学生）
 
-#### 1.4 派生类：`Administrator`
+
+#### 1.4 派生类：`Admin`
 - **属性**：
   - `int permissionLevel` - 权限等级
 - **方法**：
@@ -50,10 +45,10 @@
   - `string resourceId` - 资源ID
   - `string name` - 资源名称
   - `string type` - 资源类型
-  - `double basePrice` - 基础价格
+  - `double Price` - 基础价格
   - `ResourceStatus status` - 资源状态（枚举类型）
 - **方法**：
-  - `double getUtilizationRate()` - 获取资源利用率
+  <!-- - `double getUtilizationRate()` - 获取资源利用率 -->
   - `string getResourceInfo()` - 获取资源详细信息
   - `virtual double calculatePrice(int hours) = 0` - 计算租用价格（纯虚函数）
 
