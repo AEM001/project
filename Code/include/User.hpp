@@ -1,10 +1,15 @@
-// User.hpp
 #ifndef USER_HPP
 #define USER_HPP
 
 #include <string>
 #include <vector>
+#include <iostream>
+#include <memory>
+#include <fstream> // 添加文件流头文件
+#include "Resource.hpp"
 // #include "Rental.hpp" // 后续如需租赁历史记录，可前向声明或包含
+
+// 还需要解决初始化自动编号的问题
 
 // 用户角色枚举
 enum class UserRole {
@@ -41,13 +46,14 @@ protected:
 
 public:
     // 构造函数
-    User(std::string id, std::string name, std::string password,  double balance = 0.0, UserStatus stat = UserStatus::ACTIVE):userId(id),username(name),Password(password){}
+    User(std::string id, std::string name, std::string password,  double balance = 0.0, UserStatus stat = UserStatus::ACTIVE)
+        : userId(id), username(name), Password(password), accountBalance(balance), status(stat) {}
     virtual ~User() = default;
 
     // 获取器
     std::string getUserId() const{return userId;}
     std::string getUsername() const{return username;}
-    UserRole getRole() const{};
+    virtual UserRole getRole() const=0;
     double getAccountBalance() const{return accountBalance;}
     UserStatus getStatus() const{return status;};
 
@@ -57,21 +63,41 @@ public:
     void setStatus(UserStatus newStatus){status=newStatus;}
 
     // 账户余额管理
-    virtual void deposit(double amount);
-    virtual bool withdraw(double amount); // 成功返回true
+    virtual void deposit(double amount)=0;
+    virtual bool withdraw(double amount)=0; // 成功返回true
 
     // 身份验证
     bool verifyPassword(const std::string& password) const
     {return password==Password;}
 
     // 显示用户特定菜单/信息的虚函数
-    void displayDashboard() const{
-        std::cout<<"ID:"<<userId<<std::endl<<"name:"<<username<<std::endl<<"当前余额为:"<<accountBalance<<std::endl<<"状态"<<status<<std::endl;
-    }
+    virtual void displayDashboard() const = 0;
 
     // 序列化/反序列化方法（用于数据持久化）
-    // virtual void serialize(std::ostream& os) const;
-    // virtual void deserialize(std::istream& is);
+    virtual void serialize(std::ostream& os) const {
+        // 写入基本属性
+        os.write(userId.c_str(), userId.size() + 1);
+        os.write(username.c_str(), username.size() + 1);
+        os.write(Password.c_str(), Password.size() + 1);
+        os.write(reinterpret_cast<const char*>(&accountBalance), sizeof(double));
+        os.write(reinterpret_cast<const char*>(&status), sizeof(UserStatus));
+    }
+    
+    virtual void deserialize(std::istream& is) {
+        // 读取基本属性
+        char buffer[256];
+        is.getline(buffer, 256, '\0');
+        userId = buffer;
+        
+        is.getline(buffer, 256, '\0');
+        username = buffer;
+        
+        is.getline(buffer, 256, '\0');
+        Password = buffer;
+        
+        is.read(reinterpret_cast<char*>(&accountBalance), sizeof(double));
+        is.read(reinterpret_cast<char*>(&status), sizeof(UserStatus));
+    }
 };
 
 /**
@@ -85,15 +111,55 @@ public:
  */
 class Student : public User {
 public:
-    Student(std::string id, std::string name, std::string password):User(id,name,password){}
-
+    Student(std::string id, std::string name, std::string password)
+        : User(id, name, password) {}
+    
+    // 空构造函数用于反序列化
+    Student() : User("", "", "") {}
+    
+    UserRole getRole() const override{return UserRole::STUDENT;}
+    
     void deposit(double amount) override{
         // 还需要增加异常处理
         if(amount>=0)accountBalance+=amount;
 
     };
+    bool withdraw(double amount) override{
+        // 还需要增加异常处理
+        if(amount>=0&&amount<=accountBalance){
+            accountBalance-=amount;
+            return true;
+        }
+        return false;
+
+    }
+    void displayDashboard() const override {
+        std::cout << "===== 学生控制面板 =====\n";
+        std::cout << "ID: " << userId << "\n";
+        std::cout << "用户名: " << username << "\n";
+        std::cout << "当前余额: " << accountBalance << "\n";
+        std::cout << "状态: " << (status == UserStatus::ACTIVE? "活跃" : "已暂停") << "\n";
+        std::cout << "可用功能:\n";
+        std::cout << "1. 浏览资源\n";
+        std::cout << "2. 租用资源\n";
+        std::cout << "3. 查看租赁历史\n";
+        std::cout << "4. 查看账户余额\n";
+        std::cout << "5. 退出\n";
+    }
 
 
+    // 序列化/反序列化方法
+    void serialize(std::ostream& os) const override {
+        // 先序列化基类部分
+        User::serialize(os);
+        // 学生类没有额外属性需要序列化
+    }
+    
+    void deserialize(std::istream& is) override {
+        // 反序列化基类部分
+        User::deserialize(is);
+        // 学生类没有额外属性需要反序列化
+    }
 };
 
 /**
@@ -107,8 +173,52 @@ public:
  */
 class Teacher : public User {
 public:
-    Teacher(std::string id, std::string name, std::string password, double balance = 0.0);
+    Teacher(std::string id, std::string name, std::string password, double balance = 0.0)
+        : User(id, name, password, balance) {}
+    
+    // 空构造函数用于反序列化
+    Teacher() : User("", "", "") {}
+    
+    UserRole getRole() const override{return UserRole::TEACHER;}
+    
+    void deposit(double amount) override{
+        // 还需要增加异常处理
+        if(amount>=0)accountBalance+=amount;
+    };
+    bool withdraw(double amount) override{
+        // 还需要增加异常处理
+        if(amount>=0&&amount<=accountBalance){
+            accountBalance-=amount;
+            return true;
+        }
+        return false;
+    }
+    void displayDashboard() const override {
+        std::cout << "===== 教师控制面板 =====\n";
+        std::cout << "ID: " << userId << "\n";
+        std::cout << "用户名: " << username << "\n";
+        std::cout << "当前余额: " << accountBalance << "\n";
+        std::cout << "状态: " << (status == UserStatus::ACTIVE? "活跃" : "已暂停") << "\n";
+        std::cout << "可用功能:\n"; 
+        std::cout << "1. 浏览资源\n";
+        std::cout << "2. 租用资源\n";
+        std::cout << "3. 查看租赁历史\n";
+        std::cout << "4. 查看账户余额\n";
+        std::cout << "5. 退出\n";
+    }
 
+    // 序列化/反序列化方法
+    void serialize(std::ostream& os) const override {
+        // 先序列化基类部分
+        User::serialize(os);
+        // 教师类没有额外属性需要序列化
+    }
+    
+    void deserialize(std::istream& is) override {
+        // 反序列化基类部分
+        User::deserialize(is);
+        // 教师类没有额外属性需要反序列化
+    }
 };
 
 /**
@@ -125,18 +235,280 @@ public:
  */
 class Admin : public User {
 public:
-    Admin(std::string id, std::string name, std::string password);
-
-    void displayDashboard() const override;
+    Admin(std::string id, std::string name, std::string password)
+        : User(id, name, password) {}
+    
+    // 空构造函数用于反序列化
+    Admin() : User("", "", "") {}
+    
+    UserRole getRole() const override { return UserRole::ADMIN; }
+    
+    void displayDashboard() const override {
+        std::cout << "===== 管理员控制面板 =====\n";
+        std::cout << "ID: " << userId << "\n";
+        std::cout << "用户名: " << username << "\n";
+        std::cout << "当前余额: " << accountBalance << "\n";
+        std::cout << "状态: " << (status == UserStatus::ACTIVE ? "活跃" : "已暂停") << "\n";
+        std::cout << "可用功能:\n";
+        std::cout << "1. 管理用户\n";
+        std::cout << "2. 管理资源\n";
+        std::cout << "3. 管理租赁请求\n";
+        std::cout << "4. 设置计费标准\n";
+    }
 
     // 管理员特定功能
-    // void manageUser(User& user, UserStatus newStatus);
-    // void addResource(/* 资源详情 */);
-    // void modifyResource(/* 资源详情 */);
-    // void deleteResource(/* 资源ID */);
-    // void approveRentalRequest(/* 租赁请求ID */);
-    // void rejectRentalRequest(/* 租赁请求ID */);
-    // void setBillingRate(/* 资源类型, 新费率 */);
+    void manageUser(User& user, UserStatus newStatus) {
+        user.setStatus(newStatus);
+        std::cout << "用户 " << user.getUsername() << " 状态已更新为 " 
+                  << (newStatus == UserStatus::ACTIVE ? "活跃" : "已暂停") << std::endl;
+    }
+    
+    // 资源管理功能
+    void addResource(ResourceCollection& collection, std::shared_ptr<Resource> resource) {
+        collection.addResource(resource);
+        std::cout << "已添加新资源: " << resource->getResourceName() << " (ID: " << resource->getResourceId() << ")" << std::endl;
+        
+        // 保存更新后的资源集合到文件
+        try {
+            collection.saveToFile("resources.dat");
+            std::cout << "资源数据已保存到文件" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "保存资源数据失败: " << e.what() << std::endl;
+        }
+    }
+    
+    void modifyResource(ResourceCollection& collection, const std::string& resourceId, 
+                        const std::string& newName, double newRate) {
+        auto resource = collection.findResourceById(resourceId);
+        if (resource) {
+            resource->setResourceName(newName);
+            resource->setHourlyRate(newRate);
+            std::cout << "资源 " << resourceId << " 已更新" << std::endl;
+            
+            // 保存更新后的资源集合到文件
+            try {
+                collection.saveToFile("resources.dat");
+                std::cout << "资源数据已保存到文件" << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "保存资源数据失败: " << e.what() << std::endl;
+            }
+        } else {
+            std::cout << "未找到资源 " << resourceId << std::endl;
+        }
+    }
+    
+    void deleteResource(ResourceCollection& collection, const std::string& resourceId) {
+        auto& resources = const_cast<std::vector<std::shared_ptr<Resource>>&>(collection.getAllResources());
+        for (auto it = resources.begin(); it != resources.end(); ++it) {
+            if ((*it)->getResourceId() == resourceId) {
+                resources.erase(it);
+                std::cout << "资源 " << resourceId << " 已删除" << std::endl;
+                
+                // 保存更新后的资源集合到文件
+                try {
+                    collection.saveToFile("resources.dat");
+                    std::cout << "资源数据已保存到文件" << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "保存资源数据失败: " << e.what() << std::endl;
+                }
+                return;
+            }
+        }
+        std::cout << "未找到资源 " << resourceId << std::endl;
+    }
+    
+    void loadResourceData(ResourceCollection& collection) {
+        try {
+            collection.loadFromFile("resources.dat");
+            std::cout << "已从文件加载资源数据" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "加载资源数据失败: " << e.what() << std::endl;
+        }
+    }
+    
+    void setBillingRate(ResourceCollection& collection, ResourceType type, double newRate) {
+        auto resources = collection.getResourcesByType(type);
+        for (auto& resource : resources) {
+            resource->setHourlyRate(newRate);
+        }
+        std::cout << "已更新所有 " << (type == ResourceType::CPU ? "CPU" : "GPU") 
+                  << " 资源的计费标准为 " << newRate << " 元/小时" << std::endl;
+        
+        // 保存更新后的资源集合到文件
+        try {
+            collection.saveToFile("resources.dat");
+            std::cout << "资源数据已保存到文件" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "保存资源数据失败: " << e.what() << std::endl;
+        }
+    }
+    
+    // 租赁请求管理功能
+    void approveRentalRequest(const std::string& requestId) {
+        // 实现租赁请求批准逻辑
+        std::cout << "已批准租赁请求 " << requestId << std::endl;
+    }
+    
+    void rejectRentalRequest(const std::string& requestId) {
+        // 实现租赁请求拒绝逻辑
+        std::cout << "已拒绝租赁请求 " << requestId << std::endl;
+    }
 };
 
+
+
+/**
+ * @class UserCollection
+ * @brief 管理系统中所有用户的集合。
+ *
+ * 提供添加、查找、列出用户的功能。
+ * 可以按角色筛选用户。
+ */
+class UserCollection {
+private:
+    std::vector<std::shared_ptr<User>> users;
+
+public:
+    // 添加用户到集合
+    void addUser(std::shared_ptr<User> user) {
+        users.push_back(user);
+    }
+
+    // 根据ID查找用户
+    std::shared_ptr<User> findUserById(const std::string& id) const {
+        for (const auto& user : users) {
+            if (user->getUserId() == id) {
+                return user;
+            }
+        }
+        return nullptr; // 未找到用户
+    }
+
+    // 获取所有用户
+    const std::vector<std::shared_ptr<User>>& getAllUsers() const {
+        return users;
+    }
+
+    // 获取特定角色的用户
+    std::vector<std::shared_ptr<User>> getUsersByRole(UserRole role) const {
+        std::vector<std::shared_ptr<User>> result;
+        for (const auto& user : users) {
+            if (user->getRole() == role) {
+                result.push_back(user);
+            }
+        }
+        return result;
+    }
+
+    // 显示所有用户
+    void displayAllUsers() const {
+        std::cout << "===== 所有用户列表 =====\n";
+        for (const auto& user : users) {
+            std::cout << "ID: " << user->getUserId() << "\n";
+            std::cout << "用户名: " << user->getUsername() << "\n";
+            std::cout << "角色: ";
+            switch (user->getRole()) {
+                case UserRole::STUDENT: std::cout << "学生\n"; break;
+                case UserRole::TEACHER: std::cout << "教师\n"; break;
+                case UserRole::ADMIN: std::cout << "管理员\n"; break;
+            }
+            std::cout << "状态: " << (user->getStatus() == UserStatus::ACTIVE ? "活跃" : "已暂停") << "\n";
+            std::cout << "余额: " << user->getAccountBalance() << "\n";
+            std::cout << "------------------------\n";
+        }
+    }
+
+    // 持久化方法
+    void saveToFile(const std::string& filename) {
+        std::ofstream file(filename, std::ios::binary);
+        if (!file) {
+            throw std::runtime_error("无法打开文件进行写入: " + filename);
+        }
+        
+        // 写入用户数量
+        size_t count = users.size();
+        file.write(reinterpret_cast<const char*>(&count), sizeof(size_t));
+        
+        // 逐个写入用户
+        for (const auto& user : users) {
+            // 写入用户角色标识
+            UserRole role = user->getRole();
+            file.write(reinterpret_cast<const char*>(&role), sizeof(UserRole));
+            
+            // 根据角色序列化用户
+            user->serialize(file);
+        }
+        
+        file.close();
+    }
+    
+    void loadFromFile(const std::string& filename) {
+        std::ifstream file(filename, std::ios::binary);
+        if (!file) {
+            throw std::runtime_error("无法打开文件进行读取: " + filename);
+        }
+        
+        // 清空当前用户
+        users.clear();
+        
+        // 读取用户数量
+        size_t count;
+        file.read(reinterpret_cast<char*>(&count), sizeof(size_t));
+        
+        // 逐个读取用户
+        for (size_t i = 0; i < count; ++i) {
+            // 读取用户角色标识
+            UserRole role;
+            file.read(reinterpret_cast<char*>(&role), sizeof(UserRole));
+            
+            // 根据角色创建相应的用户对象
+            std::shared_ptr<User> user;
+            switch (role) {
+                case UserRole::STUDENT:
+                    user = std::make_shared<Student>();
+                    break;
+                case UserRole::TEACHER:
+                    user = std::make_shared<Teacher>();
+                    break;
+                case UserRole::ADMIN:
+                    user = std::make_shared<Admin>();
+                    break;
+                default:
+                    throw std::runtime_error("未知的用户角色");
+            }
+            
+            // 反序列化用户
+            user->deserialize(file);
+            
+            // 添加到集合
+            users.push_back(user);
+        }
+        
+        file.close();
+    }
+};
+
+// 创建预设用户集合的辅助函数
+inline UserCollection createDefaultUserCollection() {
+    UserCollection collection;
+    
+    // 添加管理员用户
+    collection.addUser(std::make_shared<Admin>("admin001", "系统管理员", "admin123"));
+    
+    // 添加教师用户
+    collection.addUser(std::make_shared<Teacher>("teacher001", "张教授", "teacher123", 1000.0));
+    collection.addUser(std::make_shared<Teacher>("teacher002", "李教授", "teacher123", 1000.0));
+    collection.addUser(std::make_shared<Teacher>("teacher003", "王教授", "teacher123", 1000.0));
+    
+    // 添加学生用户
+    collection.addUser(std::make_shared<Student>("student001", "张三", "student123"));
+    collection.addUser(std::make_shared<Student>("student002", "李四", "student123"));
+    collection.addUser(std::make_shared<Student>("student003", "王五", "student123"));
+    collection.addUser(std::make_shared<Student>("student004", "赵六", "student123"));
+    collection.addUser(std::make_shared<Student>("student005", "钱七", "student123"));
+    
+    return collection;
+}
+
+// 修正这里
 #endif // USER_HPP
