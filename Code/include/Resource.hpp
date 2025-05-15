@@ -156,6 +156,13 @@ private:
     int cudaCores;
     int vramG; // 显存容量，单位：G
 public:
+
+
+// ("CPU020", "Intel Xeon E5-2699 v4", 2.0, 22, 2.2, ResourceType::CPU, ResourceStatus::IDLE, 128));
+
+// ("GPU001", "NVIDIA H100 80GB", 10.0, 16896, 80, ResourceType::GPU, ResourceStatus::IDLE, 4096));
+    
+
     GPUResource(std::string id, std::string name, double rate ,int cudacores,int vram,ResourceType t=ResourceType::GPU , ResourceStatus stat = ResourceStatus::IDLE,double Storage=50):
     Resource(id,name,t,rate,stat,Storage),cudaCores(cudacores),vramG(vram){}
     void displayDetails() const override
@@ -414,7 +421,6 @@ inline ResourceCollection createDefaultResourceCollection() {
     collection.addResource(std::make_shared<CPUResource>("CPU019", "Intel Xeon E5-2699 v4", 2.0, 22, 2.2, ResourceType::CPU, ResourceStatus::IDLE, 128));
     collection.addResource(std::make_shared<CPUResource>("CPU020", "Intel Xeon E5-2699 v4", 2.0, 22, 2.2, ResourceType::CPU, ResourceStatus::IDLE, 128));
 
-    // 添加GPU资源 - 全部为NVIDIA高性能计算型号及部分AMD型号
     collection.addResource(std::make_shared<GPUResource>("GPU001", "NVIDIA H100 80GB", 10.0, 16896, 80, ResourceType::GPU, ResourceStatus::IDLE, 4096));
     collection.addResource(std::make_shared<GPUResource>("GPU002", "NVIDIA H100 80GB", 10.0, 16896, 80, ResourceType::GPU, ResourceStatus::IDLE, 4096));
     collection.addResource(std::make_shared<GPUResource>("GPU003", "NVIDIA H100 80GB", 10.0, 16896, 80, ResourceType::GPU, ResourceStatus::IDLE, 4096));
