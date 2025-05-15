@@ -63,8 +63,8 @@ protected:
 
 public:
     // 构造函数
-    User(std::string id, std::string name, std::string password,  double balance = 0.0, UserStatus stat = UserStatus::ACTIVE)
-        : userId(id), username(name), Password(password), accountBalance(balance), status(stat) {}
+    User(std::string id, std::string name, std::string password,  double balance = 0.0, UserRole r,UserStatus stat = UserStatus::ACTIVE)
+        : userId(id), username(name), Password(password), accountBalance(balance),role(r), status(stat) {}
     virtual ~User() = default;
 
     // 获取器
@@ -83,11 +83,7 @@ public:
     virtual void deposit(double amount)=0;
     virtual bool withdraw(double amount)=0; // 成功返回true
 
-    };
-    bool withdraw(double amount){
-        if(amount>=0&&amount<=accountBalance){accountBalance-=amount;return true;}
-        return false;
-    }
+   
     // 身份验证
     bool verifyPassword(const std::string& password) const
     {return password==Password;}
@@ -129,8 +125,8 @@ public:
  */
 class Student : public User {
 public:
-    Student(std::string id, std::string name, std::string password)
-         : User(id, name, password, UserRole::STUDENT) {}  // 修正为 STUDENT
+    Student(std::string id, std::string name, std::string password,UserRole role=UserRole::STUDENT)
+         : User(id, name, password) {} 
 
     
     // 空构造函数用于反序列化
@@ -189,7 +185,7 @@ public:
  */
 class Teacher : public User {
 public:
-    Teacher(std::string id, std::string name, std::string password, double balance = 0.0)
+    Teacher(std::string id, std::string name, std::string password, double balance = 0.0,UserRole role=UserRole::TEACHER)
         : User(id, name, password, balance) {}
     
     // 空构造函数用于反序列化
