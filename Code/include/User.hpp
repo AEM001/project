@@ -1,6 +1,6 @@
 #ifndef USER_HPP
 #define USER_HPP
-
+#include <iostream>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -18,12 +18,28 @@ enum class UserRole {
     ADMIN
 };
 
+
 // 用户状态枚举
 enum class UserStatus {
     ACTIVE,
     SUSPENDED // 因违规被管理员暂停使用
 };
-
+// 枚举转字符串函数
+const char* UserRoleToString(UserRole role) {
+    switch(role) {
+        case UserRole::STUDENT: return "学生";
+        case UserRole::TEACHER: return "教师";
+        case UserRole::ADMIN: return "管理员";
+        default: return "未知角色";
+    }
+}
+const char* UserStatusToString(UserStatus status) {
+    switch(status) {
+        case UserStatus::ACTIVE: return "正常";
+        case UserStatus::SUSPENDED: return "暂停";
+        default: return "未知状态";
+    }
+}
 /**
  * @class User
  * @brief 系统中所有用户的基类。
@@ -42,6 +58,7 @@ protected:
     std::string Password; 
     double accountBalance;
     UserStatus status;
+    UserRole role;
     // std::vector<RentalRecord> rentalHistory; // 可选，或由租赁系统管理
 
 public:
@@ -66,13 +83,17 @@ public:
     virtual void deposit(double amount)=0;
     virtual bool withdraw(double amount)=0; // 成功返回true
 
+    };
+    bool withdraw(double amount){
+        if(amount>=0&&amount<=accountBalance){accountBalance-=amount;return true;}
+        return false;
+    }
     // 身份验证
     bool verifyPassword(const std::string& password) const
     {return password==Password;}
 
-    // 显示用户特定菜单/信息的虚函数
-    virtual void displayDashboard() const = 0;
-
+    // 显示用户特定菜单/信息的纯虚函数
+    virtual void displayDashboard() const=0;
     // 序列化/反序列化方法（用于数据持久化）
     virtual void serialize(std::ostream& os) const {
         // 写入基本属性
@@ -101,10 +122,7 @@ public:
 };
 
 /**
- * @class Student
- * @brief 表示学生用户。
- *
- * 继承自User。可能具有特定的配额或优先级。
+ * 继承自User。具有特定的配额或优先级。
  * 交互对象：
  *  - 资源模块：浏览和租用资源。
  *  - 租赁模块：管理其租赁。
@@ -112,7 +130,8 @@ public:
 class Student : public User {
 public:
     Student(std::string id, std::string name, std::string password)
-        : User(id, name, password) {}
+         : User(id, name, password, UserRole::STUDENT) {}  // 修正为 STUDENT
+
     
     // 空构造函数用于反序列化
     Student() : User("", "", "") {}
@@ -163,12 +182,9 @@ public:
 };
 
 /**
- * @class Teacher
- * @brief 表示教师用户。
- *
  * 继承自User。可能具有更高的资源分配优先级。
  * 交互对象：
- *  - 资源模块：浏览和租用资源（可能具有更高优先级）。
+ *  - 资源模块：浏览和租用资源（具有更高优先级）。
  *  - 租赁模块：管理其租赁。
  */
 class Teacher : public User {
